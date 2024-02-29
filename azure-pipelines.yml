@@ -1,0 +1,33 @@
+trigger: none
+
+parameters:
+  - name: pythonVersion
+    default: "3.12"
+  - name: trivyVersion
+    default: "0.49.1"
+
+jobs:
+  - job: validate
+    pool:
+      vmImage: ubuntu-latest
+    variables:
+      PRE_COMMIT_HOME: $(Pipeline.Workspace)/pre-commit-cache
+    steps:
+      - task: UsePythonVersion@0
+        displayName: Set Python Version
+        inputs:
+          versionSpec: ${{ parameters.pythonVersion }}
+      - task: Cache@2
+        displayName: Pre-commit Cache
+        inputs:
+          key: pre-commit | .pre-commit-config.yaml | "${{ parameters.pythonVersion }}"
+          path: $(PRE_COMMIT_HOME)
+      - script:  |
+          wget https://github.com/aquasecurity/trivy/releases/download/v${{ parameters.trivyVersion }}/trivy_${{ parameters.trivyVersion }}_Linux-64bit.deb
+          sudo dpkg -i trivy_${{ parameters.trivyVersion }}_Linux-64bit.deb
+          trivy -v
+        displayName: Install Trivy
+      - script: python -m pip install --upgrade pre-commit
+        displayName: Install Pre-commit
+      - script: pre-commit run --all-files --show-diff-on-failure
+        displayName: Run Pre-commit
